@@ -17,4 +17,4 @@ To search for a torrent, simply use the search_l337x function
 This will return `Result<Vec<TorrentSearchResult>, TorrentSearchError>`, which when unwrapped
 gives a Vector of TorrentSearchResults (shocking I know).
 
-You can view more information about the data types of the structs [here](struct.TorrentSearchResult.html)
+You can view more information about the data types of the structs [here](https://docs.rs/torrent_search/0.1.0/torrent_search/struct.TorrentSearchResult.html)
