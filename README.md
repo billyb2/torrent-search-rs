@@ -9,7 +9,7 @@ To search for a torrent, simply use the search_l337x function
  let debian_search_results = search_l337x("Debian ISO".to_string()).unwrap();
 
  for result in debian_search_results {
-     println!("Name of torrent: {}\nMagnet: {}", result.name, result.magnet.unwrap());
+     println!("Name of torrent: {}\nMagnet: {}\nSeeders: {}\nLeeches: {}", result.name, result.magnet.unwrap(), result.seeders.unwrap(), result.leeches.unwrap());
  }
 
  ```

@@ -8,7 +8,7 @@ homepage = "https://github.com/billyb2/torrent-search-rs"
 repository = "https://github.com/billyb2/torrent-search-rs"
 readme = "README.md"
 categories = ["web-programming", "parsing"]
-keywords = ["torrent", "search", "l337x", "l337x.to"]
+keywords = ["torrent", "search", "l337x"]
 edition = "2018"
 
 [dependencies]
