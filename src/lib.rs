@@ -1,3 +1,23 @@
+//!### Usage:
+//! To search for a torrent, simply use the search_l337x function
+//!
+//! ```
+//! use torrent_search::{search_l337x, TorrentSearchResult, TorrentSearchError};
+//! let debian_search_results = search_l337x("Debian ISO".to_string()).unwrap();
+//!
+//! for result in debian_search_results {
+//!     println!("Name of torrent: {}\nMagnet: {}", result.name, result.magnet.unwrap());
+//! }
+//!
+//! ```
+//!
+//! This will return `Result<Vec<TorrentSearchResult>, TorrentSearchError>`, which when unwrapped
+//! gives a Vector of TorrentSearchResults (shocking I know).
+//!
+//! You can view more information about the data types of the structs [here](struct.TorrentSearchResult.html)
+#![deny(missing_docs)]
+#![forbid(unsafe_code)]
+
 use minreq::get;
 use regex::Regex;
 use unicode_segmentation::UnicodeSegmentation;
@@ -9,14 +29,18 @@ extern crate lazy_static;
 const TORRENT_RES_RE_STR: &str = "<td class=\"coll-1 name\"><a href=\"/sub/[0-9]*/[0-9]*/\" class=\"icon\"><i class=\"flaticon-[a-zA-Z0-9]*\"></i></a><a href=\"(/torrent/[0-9]*/([a-zA-Z0-9-_+!@#$%^&*()]*))";
 const MAGNET_RE_STR: &str = r"(stratum-|)magnet:\?xt=urn:(sha1|btih|ed2k|aich|kzhash|md5|tree:tiger):([A-Fa-f0-9]+|[A-Za-z2-7]+)&[A-Za-z0-9!@#$%^&*=+.\-_()]*(announce|[A-Fa-f0-9]{40}|[A-Za-z2-7]+)";
 
+/// If you get this, that means something went wrong while either scraping or getting the torrent page.
 #[derive(Clone, PartialEq, Eq, Debug)]
 pub enum TorrentSearchError {
+    /// Returns this if find_torrents fails
     NoSearchResults,
     //While wrapping an error inside another error is annoying, its the only way to give consistent results
     ///MinreqError converted to a String, since minreq::Error is pretty restrictive
     MinreqError(String),
     ///If you get this error, it probably means the regex failed.
     MagnetNotFound,
+    ///L337X needs searches to be longer than 3 characters. I could've just returned a NoSearchResults
+    /// error, but that is more confusing and harder to debug
     SearchTooShort,
 }
 
@@ -27,9 +51,13 @@ impl From<minreq::Error> for TorrentSearchError {
     }
 }
 
+///Some of the basic information of the torrent
 #[derive(Clone, PartialEq, Eq, Debug)]
 pub struct TorrentSearchResult {
+    ///The name of the torrent, should be equal to the display name in the magnet url
     pub name: String,
+    ///The magnet url as a string (considered releasing it as a Magnet struct, but decided against it
+    ///It's wrapped in a result since the torrent search can work, but accessing a magnet can fail
     pub magnet: Result<String, TorrentSearchError>,
 
 }
@@ -79,7 +107,6 @@ fn get_l337x(search: String) -> Result<String, minreq::Error> {
     Ok(page)
 }
 
-///Scrapes the search page for torrents
 fn find_torrents(page: String) -> Result<(Vec<String>, Vec<String>), TorrentSearchError> {
     lazy_static! {
         static ref TORRENT_RES_RE: Regex = Regex::new(TORRENT_RES_RE_STR).unwrap();

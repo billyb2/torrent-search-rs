@@ -21,6 +21,7 @@ mod tests {
 
     }
 
+    #[test]
     fn invalid_search_test() {
         assert_eq!(search_l337x("dsfadsmfoaisdmvapedoejdapoae".to_string()), Err(TorrentSearchError::NoSearchResults));
         assert_eq!(search_l337x("iqowejfopqewfcosidmfopasdmfpaoeiwmf".to_string()), Err(TorrentSearchError::NoSearchResults));
