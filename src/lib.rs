@@ -6,7 +6,7 @@
 //! let debian_search_results = search_l337x("Debian ISO".to_string()).unwrap();
 //!
 //! for result in debian_search_results {
-//!     println!("Name of torrent: {}\nMagnet: {}", result.name, result.magnet.unwrap());
+//!     println!("Name of torrent: {}\nMagnet: {}\nSeeders: {}\nLeeches: {}", result.name, result.magnet.unwrap(), result.seeders.unwrap(), result.leeches.unwrap());
 //! }
 //!
 //! ```
@@ -15,6 +15,8 @@
 //! gives a Vector of TorrentSearchResults (shocking I know).
 //!
 //! You can view more information about the data types of the structs [here](struct.TorrentSearchResult.html)
+//!
+//!
 #![deny(missing_docs)]
 #![forbid(unsafe_code)]
 
@@ -28,6 +30,8 @@ extern crate lazy_static;
 ///Torrent regex str
 const TORRENT_RES_RE_STR: &str = "<td class=\"coll-1 name\"><a href=\"/sub/[0-9]*/[0-9]*/\" class=\"icon\"><i class=\"flaticon-[a-zA-Z0-9]*\"></i></a><a href=\"(/torrent/[0-9]*/([a-zA-Z0-9-_+!@#$%^&*()]*))";
 const MAGNET_RE_STR: &str = r"(stratum-|)magnet:\?xt=urn:(sha1|btih|ed2k|aich|kzhash|md5|tree:tiger):([A-Fa-f0-9]+|[A-Za-z2-7]+)&[A-Za-z0-9!@#$%^&*=+.\-_()]*(announce|[A-Fa-f0-9]{40}|[A-Za-z2-7]+)";
+const SEEDS_RE_STR: &str = "<span class=\"seeds\">([0-9])+</span>";
+const LEECHES_RE_STR: &str = "<span class=\"leeches\">([0-9])+</span>";
 
 /// If you get this, that means something went wrong while either scraping or getting the torrent page.
 #[derive(Clone, PartialEq, Eq, Debug)]
@@ -42,6 +46,10 @@ pub enum TorrentSearchError {
     ///L337X needs searches to be longer than 3 characters. I could've just returned a NoSearchResults
     /// error, but that is more confusing and harder to debug
     SearchTooShort,
+    /// The seeds regex failed
+    SeedsNotFound,
+    /// The leeches regex failed
+    LeechesNotFound
 }
 
 ///This necessary to make using minreq::get possible
@@ -56,6 +64,10 @@ impl From<minreq::Error> for TorrentSearchError {
 pub struct TorrentSearchResult {
     ///The name of the torrent, should be equal to the display name in the magnet url
     pub name: String,
+    ///Seeders, of course
+    pub seeders: Result<usize, TorrentSearchError>,
+    ///Leeches, of course
+    pub leeches: Result<usize, TorrentSearchError>,
     ///The magnet url as a string (considered releasing it as a Magnet struct, but decided against it
     ///It's wrapped in a result since the torrent search can work, but accessing a magnet can fail
     pub magnet: Result<String, TorrentSearchError>,
@@ -74,6 +86,8 @@ pub fn search_l337x(search: String) -> Result<Vec<TorrentSearchResult>, TorrentS
             Ok(torrents) =>
                 {
                     for (i, val) in torrents.0.iter().enumerate() {
+                        let (seeder_info, leeches_info) = find_peer_info(val).unwrap();
+
                         search_results.push(
                             TorrentSearchResult {
                                 name: String::from(&torrents.1[i]),
@@ -81,6 +95,8 @@ pub fn search_l337x(search: String) -> Result<Vec<TorrentSearchResult>, TorrentS
                                     Ok(m) => Ok(m),
                                     Err(e) => Err(e),
                                 },
+                                seeders: seeder_info,
+                                leeches: leeches_info,
                             }
                         );
                     }
@@ -147,4 +163,26 @@ fn find_magnet(url: &String) -> Result<String, TorrentSearchError> {
         Some(captures) => Ok(captures.get(0).map_or("", |m| m.as_str()).to_string()),
         None => Err(TorrentSearchError::MagnetNotFound),
     }
+}
+
+fn find_peer_info(url: &String) -> Result<(Result<usize, TorrentSearchError>, Result<usize, TorrentSearchError>), TorrentSearchError> {
+    lazy_static! {
+        static ref SEEDS_RE: Regex = Regex::new(SEEDS_RE_STR).unwrap();
+        static ref LEECHES_RE: Regex = Regex::new(LEECHES_RE_STR).unwrap();
+    }
+
+    let page = get( format!("https://1337x.to{}", url)).send()?.as_str()?[..].to_string();
+
+    let seeds = match SEEDS_RE.captures(&page) {
+        Some(captures) => Ok(captures.get(1).map_or("", |m| m.as_str()).parse::<usize>().unwrap()),
+        None => Err(TorrentSearchError::SeedsNotFound),
+    };
+
+    let leeches = match LEECHES_RE.captures(&page) {
+        Some(captures) => Ok(captures.get(1).map_or("", |m| m.as_str()).parse::<usize>().unwrap()),
+        None => Err(TorrentSearchError::LeechesNotFound),
+    };
+
+    Ok((seeds, leeches))
+
 }
