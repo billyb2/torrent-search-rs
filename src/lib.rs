@@ -12,7 +12,7 @@ const MAGNET_RE_STR: &str = r"(stratum-|)magnet:\?xt=urn:(sha1|btih|ed2k|aich|kz
 #[derive(Clone, PartialEq, Eq, Debug)]
 pub enum TorrentSearchError {
     NoSearchResults,
-    //While wrapping an error inside another error is annoying, its the only way to give consistent result
+    //While wrapping an error inside another error is annoying, its the only way to give consistent results
     ///MinreqError converted to a String, since minreq::Error is pretty restrictive
     MinreqError(String),
     ///If you get this error, it probably means the regex failed.
