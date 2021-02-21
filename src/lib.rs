@@ -30,8 +30,8 @@ extern crate lazy_static;
 ///Torrent regex str
 const TORRENT_RES_RE_STR: &str = "<td class=\"coll-1 name\"><a href=\"/sub/[0-9]*/[0-9]*/\" class=\"icon\"><i class=\"flaticon-[a-zA-Z0-9]*\"></i></a><a href=\"(/torrent/[0-9]*/([a-zA-Z0-9-_+!@#$%^&*()]*))";
 const MAGNET_RE_STR: &str = r"(stratum-|)magnet:\?xt=urn:(sha1|btih|ed2k|aich|kzhash|md5|tree:tiger):([A-Fa-f0-9]+|[A-Za-z2-7]+)&[A-Za-z0-9!@#$%^&*=+.\-_()]*(announce|[A-Fa-f0-9]{40}|[A-Za-z2-7]+)";
-const SEEDS_RE_STR: &str = "<span class=\"seeds\">([0-9])+</span>";
-const LEECHES_RE_STR: &str = "<span class=\"leeches\">([0-9])+</span>";
+const SEEDS_RE_STR: &str = "<td class=\"coll-[0-9]+ seeds\">([0-9])+</td>";
+const LEECHES_RE_STR: &str = "<td class=\"coll-[0-9]+ leeches\">([0-9])+</td>";
 
 /// If you get this, that means something went wrong while either scraping or getting the torrent page.
 #[derive(Clone, PartialEq, Eq, Debug)]
@@ -62,7 +62,8 @@ impl From<minreq::Error> for TorrentSearchError {
 ///Some of the basic information of the torrent
 #[derive(Clone, PartialEq, Eq, Debug)]
 pub struct TorrentSearchResult {
-    ///The name of the torrent, should be equal to the display name in the magnet url
+    ///The name of the torrent, should be equal to the display name in the magnet url. It isn't a
+    /// result since if the name fails, the entire vector will result in a failure.
     pub name: String,
     ///Seeders, of course
     pub seeders: Result<usize, TorrentSearchError>,
@@ -80,13 +81,14 @@ pub fn search_l337x(search: String) -> Result<Vec<TorrentSearchResult>, TorrentS
     if search.graphemes(true).count() >= 3 {
         let mut search_results: Vec<TorrentSearchResult> = Vec::new();
 
-        let torrents = find_torrents(get_l337x(search)?);
+        let l337x_search_page = get_l337x(search)?;
+        let torrents = find_torrents(&l337x_search_page);
 
         match torrents {
             Ok(torrents) =>
                 {
                     for (i, val) in torrents.0.iter().enumerate() {
-                        let (seeder_info, leeches_info) = find_peer_info(val).unwrap();
+                        let (seeder_info, leeches_info) = find_peer_info(&l337x_search_page).unwrap();
 
                         search_results.push(
                             TorrentSearchResult {
@@ -123,7 +125,7 @@ fn get_l337x(search: String) -> Result<String, minreq::Error> {
     Ok(page)
 }
 
-fn find_torrents(page: String) -> Result<(Vec<String>, Vec<String>), TorrentSearchError> {
+fn find_torrents(page: &String) -> Result<(Vec<String>, Vec<String>), TorrentSearchError> {
     lazy_static! {
         static ref TORRENT_RES_RE: Regex = Regex::new(TORRENT_RES_RE_STR).unwrap();
     }
@@ -165,13 +167,11 @@ fn find_magnet(url: &String) -> Result<String, TorrentSearchError> {
     }
 }
 
-fn find_peer_info(url: &String) -> Result<(Result<usize, TorrentSearchError>, Result<usize, TorrentSearchError>), TorrentSearchError> {
+fn find_peer_info(page: &String) -> Result<(Result<usize, TorrentSearchError>, Result<usize, TorrentSearchError>), TorrentSearchError> {
     lazy_static! {
         static ref SEEDS_RE: Regex = Regex::new(SEEDS_RE_STR).unwrap();
         static ref LEECHES_RE: Regex = Regex::new(LEECHES_RE_STR).unwrap();
     }
-
-    let page = get( format!("https://1337x.to{}", url)).send()?.as_str()?[..].to_string();
 
     let seeds = match SEEDS_RE.captures(&page) {
         Some(captures) => Ok(captures.get(1).map_or("", |m| m.as_str()).parse::<usize>().unwrap()),
