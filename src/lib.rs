@@ -119,7 +119,7 @@ fn get_l337x(search: String) -> Result<String, minreq::Error> {
     let url = format!("https://1337x.to/search/{}/1/", search.replace("/", "+").replace("%2F", "+").replace("%2f", "+"));
     //Remove the first 5000 bytes, to make the regex run faster (the first 5000 are guaranteed not to
     // contain any links
-    let page = get(url).send()?.as_str()?[5000..].to_string();
+    let page = get(url).send()?.as_str()?.to_string();
     Ok(page)
 }
 
@@ -157,7 +157,7 @@ fn find_magnet(url: &String) -> Result<String, TorrentSearchError> {
         static ref MAGNET_RE: Regex = Regex::new(MAGNET_RE_STR).unwrap();
     }
 
-    let page = get( format!("https://1337x.to{}", url)).send()?.as_str()?[5000..].to_string();
+    let page = get( format!("https://1337x.to{}", url)).send()?.as_str()?.to_string();
 
     match MAGNET_RE.captures(&page) {
         Some(captures) => Ok(captures.get(0).map_or("", |m| m.as_str()).to_string()),
