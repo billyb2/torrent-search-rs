@@ -16,6 +16,12 @@ lazy_static = "1"
 regex = "1"
 minreq = { version = "2", features = ["https-rustls"] }
 unicode-segmentation = "1"
+reqwest = "0.11"
+tokio = { version = "1", features = ["net", "rt-multi-thread"] }
+
+[dev-dependencies]
+tokio = { version = "1", features = ["net", "rt-multi-thread", "macros"] }
+
 
 [profile.release]
 opt-level = 3

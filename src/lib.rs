@@ -19,10 +19,9 @@
 //!
 #![deny(missing_docs)]
 #![forbid(unsafe_code)]
-
-use minreq::get;
 use regex::Regex;
 use unicode_segmentation::UnicodeSegmentation;
+use tokio::task;
 
 #[macro_use]
 extern crate lazy_static;
@@ -39,8 +38,8 @@ pub enum TorrentSearchError {
     /// Returns this if find_torrents fails
     NoSearchResults,
     //While wrapping an error inside another error is annoying, its the only way to give consistent results
-    ///MinreqError converted to a String, since minreq::Error is pretty restrictive
-    MinreqError(String),
+    ///ReqwestError converted to a String, since minreq::Error is pretty restrictive
+    ReqwestError(String),
     ///If you get this error, it probably means the regex failed.
     MagnetNotFound,
     ///L337X needs searches to be longer than 3 characters. I could've just returned a NoSearchResults
@@ -53,9 +52,9 @@ pub enum TorrentSearchError {
 }
 
 ///This necessary to make using minreq::get possible
-impl From<minreq::Error> for TorrentSearchError {
-    fn from(e: minreq::Error) -> Self {
-        TorrentSearchError::MinreqError(e.to_string())
+impl From<reqwest::Error> for TorrentSearchError {
+    fn from(e: reqwest::Error) -> Self {
+        TorrentSearchError::ReqwestError(e.to_string())
     }
 }
 
@@ -76,22 +75,22 @@ pub struct TorrentSearchResult {
 
 ///The function takes a search string, then uses web scraping using regex to find the various parts
 /// of the search. The search must be longer than 3 characters
-pub fn search_l337x(search: String) -> Result<Vec<TorrentSearchResult>, TorrentSearchError> {
+pub async fn search_l337x(search: String) -> Result<Vec<TorrentSearchResult>, TorrentSearchError> {
     if search.graphemes(true).count() >= 3 {
         let mut search_results: Vec<TorrentSearchResult> = Vec::new();
 
-        let torrents = find_torrents(get_l337x(search)?);
+        let torrents = find_torrents(get_l337x(search).await?);
 
         match torrents {
             Ok(torrents) =>
                 {
                     for (i, val) in torrents.0.iter().enumerate() {
-                        let (seeder_info, leeches_info) = find_peer_info(val).unwrap();
+                        let (seeder_info, leeches_info) = find_peer_info(val).await?;
 
                         search_results.push(
                             TorrentSearchResult {
                                 name: String::from(&torrents.1[i]),
-                                magnet: match find_magnet(val) {
+                                magnet: match find_magnet(val).await {
                                     Ok(m) => Ok(m),
                                     Err(e) => Err(e),
                                 },
@@ -114,12 +113,10 @@ pub fn search_l337x(search: String) -> Result<Vec<TorrentSearchResult>, TorrentS
 
 }
 
-fn get_l337x(search: String) -> Result<String, minreq::Error> {
+async fn get_l337x(search: String) -> Result<String, reqwest::Error> {
     //Remove all slashes from searches, as 1337x searches do not allow them
-    let url = format!("https://1337x.to/search/{}/1/", search.replace("/", "+").replace("%2F", "+").replace("%2f", "+"));
-    //Remove the first 5000 bytes, to make the regex run faster (the first 5000 are guaranteed not to
-    // contain any links
-    let page = get(url).send()?.as_str()?.to_string();
+    let page = reqwest::get( &format!("https://1337x.to/search/{}/1/", search.replace("/", "+").replace("%2F", "+").replace("%2f", "+"))).await?.text().await?;
+    
     Ok(page)
 }
 
@@ -152,12 +149,12 @@ fn find_torrents(page: String) -> Result<(Vec<String>, Vec<String>), TorrentSear
 }
 
 ///Scrapes the details page of a torrent for the magnet url
-fn find_magnet(url: &String) -> Result<String, TorrentSearchError> {
+async fn find_magnet(url: &String) -> Result<String, TorrentSearchError> {
     lazy_static! {
         static ref MAGNET_RE: Regex = Regex::new(MAGNET_RE_STR).unwrap();
     }
 
-    let page = get( format!("https://1337x.to{}", url)).send()?.as_str()?.to_string();
+    let page = reqwest::get( &format!("https://1337x.to{}", url) ).await?.text().await?;
 
     match MAGNET_RE.captures(&page) {
         Some(captures) => Ok(captures.get(0).map_or("", |m| m.as_str()).to_string()),
@@ -165,13 +162,13 @@ fn find_magnet(url: &String) -> Result<String, TorrentSearchError> {
     }
 }
 
-fn find_peer_info(url: &String) -> Result<(Result<usize, TorrentSearchError>, Result<usize, TorrentSearchError>), TorrentSearchError> {
+async fn find_peer_info(url: &String) -> Result<(Result<usize, TorrentSearchError>, Result<usize, TorrentSearchError>), TorrentSearchError> {
     lazy_static! {
         static ref SEEDS_RE: Regex = Regex::new(SEEDS_RE_STR).unwrap();
         static ref LEECHES_RE: Regex = Regex::new(LEECHES_RE_STR).unwrap();
     }
 
-    let page = get( format!("https://1337x.to{}", url)).send()?.as_str()?[..].to_string();
+    let page = reqwest::get( &format!("https://1337x.to{}", url)).await?.text().await?;
 
     let seeds = match SEEDS_RE.captures(&page) {
         Some(captures) => Ok(captures.get(1).map_or("", |m| m.as_str()).parse::<usize>().unwrap()),
