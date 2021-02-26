@@ -3,10 +3,14 @@
 //!
 //! ```
 //! use torrent_search::{search_l337x, TorrentSearchResult, TorrentSearchError};
-//! let debian_search_results = search_l337x("Debian ISO".to_string()).unwrap();
+//!
+//! #[tokio::main]
+//! async fn main() {
+//! let debian_search_results = search_l337x("Debian ISO".to_string()).await.unwrap();
 //!
 //! for result in debian_search_results {
 //!     println!("Name of torrent: {}\nMagnet: {}\nSeeders: {}\nLeeches: {}", result.name, result.magnet.unwrap(), result.seeders.unwrap(), result.leeches.unwrap());
+//! }
 //! }
 //!
 //! ```

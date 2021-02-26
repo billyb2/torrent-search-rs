@@ -1,6 +1,6 @@
 [package]
 name = "torrent_search"
-version = "0.2.2"
+version = "0.3.0"
 authors = ["William Batista <bootlegbilly@protonmail.ch>"]
 license = "MIT"
 description = "An unofficial torrent searching library in Rust"
@@ -14,7 +14,6 @@ edition = "2018"
 [dependencies]
 lazy_static = "1"
 regex = "1"
-minreq = { version = "2", features = ["https-rustls"] }
 unicode-segmentation = "1"
 reqwest = "0.11"
 tokio = { version = "1", features = ["net", "rt-multi-thread"] }
