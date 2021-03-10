@@ -25,7 +25,6 @@
 #![forbid(unsafe_code)]
 use regex::Regex;
 use unicode_segmentation::UnicodeSegmentation;
-use tokio::task;
 
 #[macro_use]
 extern crate lazy_static;
