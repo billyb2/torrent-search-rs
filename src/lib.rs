@@ -26,6 +26,9 @@
 use regex::Regex;
 use unicode_segmentation::UnicodeSegmentation;
 
+use std::error::Error;
+use std::fmt;
+
 #[macro_use]
 extern crate lazy_static;
 
@@ -51,8 +54,23 @@ pub enum TorrentSearchError {
     /// The seeds regex failed
     SeedsNotFound,
     /// The leeches regex failed
-    LeechesNotFound
+    LeechesNotFound,
 }
+
+impl fmt::Display for TorrentSearchError {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            Self::NoSearchResults => write!(f, "No search results"),
+            Self::ReqwestError(msg) => write!(f, "Reqwest error: {}", msg),
+            Self::MagnetNotFound => write!(f, "Magnet URL not found"),
+            Self::SearchTooShort => write!(f, "Search too short"),
+            Self::SeedsNotFound => write!(f, "Seeds not found"),
+            Self::LeechesNotFound => write!(f, "Leeches not found"),
+        }
+    }
+}
+
+impl Error for TorrentSearchError {}
 
 ///This necessary to make using minreq::get possible
 impl From<reqwest::Error> for TorrentSearchError {
