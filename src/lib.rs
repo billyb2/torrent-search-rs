@@ -162,7 +162,7 @@ fn find_torrents(page: String) -> Result<(Vec<String>, Vec<String>), TorrentSear
 
     //I only need to check responses.0 since they are both guaranteed to be the same length (or an
     // error will have already occurred)
-    if responses.0.len() != 0 {
+    if !responses.0.is_empty() {
         Ok(responses)
     } else {
         Err(TorrentSearchError::NoSearchResults)
@@ -170,7 +170,7 @@ fn find_torrents(page: String) -> Result<(Vec<String>, Vec<String>), TorrentSear
 }
 
 ///Scrapes the details page of a torrent for the magnet url
-async fn find_magnet(url: &String) -> Result<String, TorrentSearchError> {
+async fn find_magnet(url: &str) -> Result<String, TorrentSearchError> {
     lazy_static! {
         static ref MAGNET_RE: Regex = Regex::new(MAGNET_RE_STR).unwrap();
     }
@@ -183,7 +183,7 @@ async fn find_magnet(url: &String) -> Result<String, TorrentSearchError> {
     }
 }
 
-async fn find_peer_info(url: &String) -> Result<(Result<usize, TorrentSearchError>, Result<usize, TorrentSearchError>), TorrentSearchError> {
+async fn find_peer_info(url: &str) -> Result<(Result<usize, TorrentSearchError>, Result<usize, TorrentSearchError>), TorrentSearchError> {
     lazy_static! {
         static ref SEEDS_RE: Regex = Regex::new(SEEDS_RE_STR).unwrap();
         static ref LEECHES_RE: Regex = Regex::new(LEECHES_RE_STR).unwrap();
