@@ -1,6 +1,6 @@
 [package]
 name = "torrent_search"
-version = "0.3.2"
+version = "0.3.3"
 authors = ["William Batista <bootlegbilly@protonmail.ch>"]
 license = "MIT"
 description = "An unofficial torrent searching library in Rust"
