@@ -2,23 +2,23 @@
 //! To search for a torrent, simply use the search_l337x function
 //!
 //! ```
-//! use torrent_search::{search_l337x, TorrentSearchResult, TorrentSearchError};
+//!use torrent_search::{search_l337x, TorrentSearchResult, TorrentSearchError};
 //!
-//! #[tokio::main]
-//! async fn main() {
-//! let debian_search_results = search_l337x("Debian ISO".to_string()).await.unwrap();
+//!#[tokio::main]
+//!async fn main() {
+//!    let debian_search_results = search_l337x("Debian ISO".to_string()).await.unwrap();
 //!
-//! for result in debian_search_results {
-//!     println!("Name of torrent: {}\nMagnet: {}\nSeeders: {}\nLeeches: {}", result.name, result.magnet.unwrap(), result.seeders.unwrap(), result.leeches.unwrap());
-//! }
-//! }
+//!    for result in debian_search_results {
+//!        println!("Name of torrent: {}\nMagnet: {}\nSeeders: {}\nLeeches: {}", result.name, result.magnet.unwrap(), result.seeders.unwrap(), result.leeches.unwrap());
+//!
+//!    }
+//!}
 //!
 //! ```
 //!
 //! This will return `Result<Vec<TorrentSearchResult>, TorrentSearchError>`, which when unwrapped
-//! gives a Vector of TorrentSearchResults (shocking I know).
+//! gives a Vector of TorrentSearchResults
 //!
-//! You can view more information about the data types of the structs [here](struct.TorrentSearchResult.html)
 //!
 //!
 #![deny(missing_docs)]
@@ -29,8 +29,7 @@ use unicode_segmentation::UnicodeSegmentation;
 use std::error::Error;
 use std::fmt;
 
-#[macro_use]
-extern crate lazy_static;
+use lazy_static::lazy_static;
 
 ///Torrent regex str
 const TORRENT_RES_RE_STR: &str = "<td class=\"coll-1 name\"><a href=\"/sub/[0-9]*/[0-9]*/\" class=\"icon\"><i class=\"flaticon-[a-zA-Z0-9]*\"></i></a><a href=\"(/torrent/[0-9]*/([a-zA-Z0-9-_+!@#$%^&*()]*))";
@@ -41,10 +40,10 @@ const LEECHES_RE_STR: &str = "<span class=\"leeches\">([0-9])+</span>";
 /// If you get this, that means something went wrong while either scraping or getting the torrent page.
 #[derive(Clone, PartialEq, Eq, Debug)]
 pub enum TorrentSearchError {
-    /// Returns this if find_torrents fails
+    /// Returns this if find_torrents fails due to no search results being found
     NoSearchResults,
     //While wrapping an error inside another error is annoying, its the only way to give consistent results
-    ///ReqwestError converted to a String, since minreq::Error is pretty restrictive
+    ///ReqwestError converted to a String
     ReqwestError(String),
     ///If you get this error, it probably means the regex failed.
     MagnetNotFound,
@@ -72,7 +71,7 @@ impl fmt::Display for TorrentSearchError {
 
 impl Error for TorrentSearchError {}
 
-///This necessary to make using minreq::get possible
+///This is necessary to make using reqwest possible
 impl From<reqwest::Error> for TorrentSearchError {
     fn from(e: reqwest::Error) -> Self {
         TorrentSearchError::ReqwestError(e.to_string())
@@ -98,7 +97,7 @@ pub struct TorrentSearchResult {
 /// of the search. The search must be longer than 3 characters
 pub async fn search_l337x(search: String) -> Result<Vec<TorrentSearchResult>, TorrentSearchError> {
     if search.graphemes(true).count() >= 3 {
-        let mut search_results: Vec<TorrentSearchResult> = Vec::new();
+        let mut search_results: Vec<TorrentSearchResult> = Vec::with_capacity(25);
 
         let torrents = find_torrents(get_l337x(search).await?);
 
