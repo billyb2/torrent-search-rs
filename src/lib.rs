@@ -84,13 +84,12 @@ pub struct TorrentSearchResult {
     ///The name of the torrent, should be equal to the display name in the magnet url
     pub name: String,
     ///Seeders, of course
-    pub seeders: Result<usize, TorrentSearchError>,
+    pub seeders: Result<u32, TorrentSearchError>,
     ///Leeches, of course
-    pub leeches: Result<usize, TorrentSearchError>,
+    pub leeches: Result<u32, TorrentSearchError>,
     ///The magnet url as a string (considered releasing it as a Magnet struct, but decided against it
     ///It's wrapped in a result since the torrent search can work, but accessing a magnet can fail
     pub magnet: Result<String, TorrentSearchError>,
-
 }
 
 ///The function takes a search string, then uses web scraping using regex to find the various parts
@@ -102,41 +101,44 @@ pub async fn search_l337x(search: String) -> Result<Vec<TorrentSearchResult>, To
         let torrents = find_torrents(get_l337x(search).await?);
 
         match torrents {
-            Ok(torrents) =>
-                {
-                    for (i, val) in torrents.0.iter().enumerate() {
-                        let (seeder_info, leeches_info) = find_peer_info(val).await?;
+            Ok(torrents) => {
+                for (i, val) in torrents.0.iter().enumerate() {
+                    let (seeder_info, leeches_info) = find_peer_info(val).await?;
 
-                        search_results.push(
-                            TorrentSearchResult {
-                                name: String::from(&torrents.1[i]),
-                                magnet: match find_magnet(val).await {
-                                    Ok(m) => Ok(m),
-                                    Err(e) => Err(e),
-                                },
-                                seeders: seeder_info,
-                                leeches: leeches_info,
-                            }
-                        );
-                    }
+                    search_results.push(TorrentSearchResult {
+                        name: String::from(&torrents.1[i]),
+                        magnet: match find_magnet(val).await {
+                            Ok(m) => Ok(m),
+                            Err(e) => Err(e),
+                        },
+                        seeders: seeder_info,
+                        leeches: leeches_info,
+                    });
+                }
 
-                    Ok(search_results)
-                },
+                Ok(search_results)
+            }
 
-            Err(e) => {
-                Err(e)
-            },
+            Err(e) => Err(e),
         }
     } else {
         Err(TorrentSearchError::SearchTooShort)
     }
-
 }
 
 async fn get_l337x(search: String) -> Result<String, reqwest::Error> {
     //Remove all slashes from searches, as 1337x searches do not allow them
-    let page = reqwest::get( &format!("https://1337x.to/search/{}/1/", search.replace("/", "+").replace("%2F", "+").replace("%2f", "+"))).await?.text().await?;
-    
+    let page = reqwest::get(&format!(
+        "https://1337x.to/search/{}/1/",
+        search
+            .replace("/", "+")
+            .replace("%2F", "+")
+            .replace("%2f", "+")
+    ))
+    .await?
+    .text()
+    .await?;
+
     Ok(page)
 }
 
@@ -145,15 +147,20 @@ fn find_torrents(page: String) -> Result<(Vec<String>, Vec<String>), TorrentSear
         static ref TORRENT_RES_RE: Regex = Regex::new(TORRENT_RES_RE_STR).unwrap();
     }
 
-
     //Index 0 of the tuple has the torrent url, index 1 has its name
     let responses = {
         let mut responses: (Vec<String>, Vec<String>) = (Vec::new(), Vec::new());
 
         for result in TORRENT_RES_RE.captures_iter(&page) {
             //Gotta add a slash at the end of the urls, or else it's invalid and will give a 404 if you visit it on 1337x
-            responses.0.push(format!("{}{}", result.get(1).map_or("", |m| m.as_str()).to_string(), "/"));
-            responses.1.push(result.get(2).map_or("", |m| m.as_str()).to_string());
+            responses.0.push(format!(
+                "{}{}",
+                result.get(1).map_or("", |m| m.as_str()).to_string(),
+                "/"
+            ));
+            responses
+                .1
+                .push(result.get(2).map_or("", |m| m.as_str()).to_string());
         }
 
         responses
@@ -174,7 +181,10 @@ async fn find_magnet(url: &str) -> Result<String, TorrentSearchError> {
         static ref MAGNET_RE: Regex = Regex::new(MAGNET_RE_STR).unwrap();
     }
 
-    let page = reqwest::get( &format!("https://1337x.to{}", url) ).await?.text().await?;
+    let page = reqwest::get(&format!("https://1337x.to{}", url))
+        .await?
+        .text()
+        .await?;
 
     match MAGNET_RE.captures(&page) {
         Some(captures) => Ok(captures.get(0).map_or("", |m| m.as_str()).to_string()),
@@ -182,24 +192,42 @@ async fn find_magnet(url: &str) -> Result<String, TorrentSearchError> {
     }
 }
 
-async fn find_peer_info(url: &str) -> Result<(Result<usize, TorrentSearchError>, Result<usize, TorrentSearchError>), TorrentSearchError> {
+async fn find_peer_info(
+    url: &str,
+) -> Result<
+    (
+        Result<u32, TorrentSearchError>,
+        Result<u32, TorrentSearchError>,
+    ),
+    TorrentSearchError,
+> {
     lazy_static! {
         static ref SEEDS_RE: Regex = Regex::new(SEEDS_RE_STR).unwrap();
         static ref LEECHES_RE: Regex = Regex::new(LEECHES_RE_STR).unwrap();
     }
 
-    let page = reqwest::get( &format!("https://1337x.to{}", url)).await?.text().await?;
+    let page = reqwest::get(&format!("https://1337x.to{}", url))
+        .await?
+        .text()
+        .await?;
 
     let seeds = match SEEDS_RE.captures(&page) {
-        Some(captures) => Ok(captures.get(1).map_or("", |m| m.as_str()).parse::<usize>().unwrap()),
+        Some(captures) => Ok(captures
+            .get(1)
+            .map_or("", |m| m.as_str())
+            .parse::<u32>()
+            .unwrap()),
         None => Err(TorrentSearchError::SeedsNotFound),
     };
 
     let leeches = match LEECHES_RE.captures(&page) {
-        Some(captures) => Ok(captures.get(1).map_or("", |m| m.as_str()).parse::<usize>().unwrap()),
+        Some(captures) => Ok(captures
+            .get(1)
+            .map_or("", |m| m.as_str())
+            .parse::<u32>()
+            .unwrap()),
         None => Err(TorrentSearchError::LeechesNotFound),
     };
 
     Ok((seeds, leeches))
-
 }
