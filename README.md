@@ -4,7 +4,7 @@
 ### Usage:
 To search for a torrent, simply use the `search_l337x` function
 
- ```
+ ```rust
  use torrent_search::{search_l337x, TorrentSearchResult, TorrentSearchError};
 
 #[tokio::main]
